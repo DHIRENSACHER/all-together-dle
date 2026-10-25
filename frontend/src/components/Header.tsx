@@ -107,18 +107,11 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </div>
 
-        {/* Center Title & Daily Puzzle Badge */}
-        <div className="text-center flex flex-col items-center">
+        {/* Center Title */}
+        <div className="text-center">
           <h1 className="text-2xl sm:text-3xl font-black tracking-widest text-white uppercase font-sans leading-none">
             ALLDLE
           </h1>
-          <div className="text-[10px] sm:text-[11px] font-bold tracking-wider text-wordle-subtext mt-0.5">
-            {challengeType === 'daily' ? (
-              <span className="text-emerald-400">Daily</span>
-            ) : (
-              <span className="text-sky-400">Practice</span>
-            )}
-          </div>
         </div>
 
         {/* Right Action Buttons */}
