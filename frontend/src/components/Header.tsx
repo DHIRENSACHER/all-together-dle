@@ -10,6 +10,7 @@ import {
   Calendar,
   Infinity as InfinityIcon,
   ShieldAlert,
+  CheckCircle2,
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -25,6 +26,8 @@ interface HeaderProps {
   onOpenHelp: () => void;
   onRestartGame: () => void;
   currentStreak: number;
+  dayIndex: number;
+  isDailyDone: boolean;
 }
 
 const MODES: Array<{ id: GameMode; label: string; desc: string }> = [
@@ -48,9 +51,13 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenHelp,
   onRestartGame,
   currentStreak,
+  dayIndex,
+  isDailyDone,
 }) => {
+  const modeTitle = mode.charAt(0).toUpperCase() + mode.slice(1);
+
   return (
-    <header className="w-full max-w-2xl mx-auto px-3 sm:px-4 pt-2 pb-2 flex flex-col gap-2 border-b border-wordle-border select-none">
+    <header className="w-full max-w-2xl mx-auto px-3 sm:px-4 pt-2 pb-2 flex flex-col gap-1.5 border-b border-wordle-border select-none">
       {/* Top Navbar */}
       <div className="flex items-center justify-between h-11">
         {/* Left Action Buttons */}
@@ -64,20 +71,22 @@ export const Header: React.FC<HeaderProps> = ({
             <HelpCircle className="w-5 h-5" />
           </button>
 
+          {/* Daily vs Practice Mode Switcher */}
           <button
             onClick={onToggleChallengeType}
-            className="flex items-center gap-1 px-2 py-1 rounded text-xs font-bold bg-wordle-card border border-wordle-border hover:border-wordle-borderLight text-gray-300 transition-colors"
-            title={`Switch to ${challengeType === 'daily' ? 'Infinite Practice' : 'Daily Challenge'}`}
+            className="flex items-center gap-1 px-2.5 py-1 rounded text-xs font-bold bg-wordle-card border border-wordle-border hover:border-wordle-borderLight text-gray-300 transition-colors shadow-sm"
+            title={`Switch to ${challengeType === 'daily' ? 'Practice Mode (Unlimited)' : 'Daily Challenge'}`}
           >
             {challengeType === 'daily' ? (
               <>
                 <Calendar className="w-3.5 h-3.5 text-emerald-400" />
-                <span className="text-emerald-400">Daily</span>
+                <span className="text-emerald-400 font-bold">Daily #{dayIndex}</span>
+                {isDailyDone && <CheckCircle2 className="w-3 h-3 text-emerald-400 ml-0.5" />}
               </>
             ) : (
               <>
                 <InfinityIcon className="w-3.5 h-3.5 text-sky-400" />
-                <span className="text-sky-400">Practice</span>
+                <span className="text-sky-400 font-bold">Practice</span>
               </>
             )}
           </button>
@@ -98,11 +107,20 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </div>
 
-        {/* Center Title */}
-        <div className="text-center">
-          <h1 className="text-2xl sm:text-3xl font-black tracking-widest text-white uppercase font-sans">
+        {/* Center Title & Daily Puzzle Badge */}
+        <div className="text-center flex flex-col items-center">
+          <h1 className="text-2xl sm:text-3xl font-black tracking-widest text-white uppercase font-sans leading-none">
             ALLDLE
           </h1>
+          <div className="text-[10px] sm:text-[11px] font-bold tracking-wider text-wordle-subtext mt-0.5">
+            {challengeType === 'daily' ? (
+              <span className="text-emerald-400">
+                {mode === 'classic' ? 'Wordle' : modeTitle} #{dayIndex}
+              </span>
+            ) : (
+              <span className="text-sky-400">Practice Mode</span>
+            )}
+          </div>
         </div>
 
         {/* Right Action Buttons */}
@@ -133,12 +151,12 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </button>
 
-          {/* Reset / New Game */}
+          {/* Reset / New Game (Only enabled in Practice mode, or to view modal in daily) */}
           <button
             onClick={onRestartGame}
             className="p-1.5 sm:p-2 rounded text-gray-400 hover:text-white hover:bg-wordle-card transition-colors"
-            title="Restart / New Game"
-            aria-label="New Game"
+            title={challengeType === 'daily' ? 'View Daily Game' : 'New Practice Game'}
+            aria-label="Restart / New Game"
           >
             <RotateCcw className="w-5 h-5" />
           </button>

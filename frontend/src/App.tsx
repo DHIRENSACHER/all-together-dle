@@ -16,11 +16,13 @@ import {
   validateWordApi,
 } from './services/api';
 import { SOLUTIONS } from './services/evaluator';
-import { getTodayDateStr, getRandomTargets } from './services/prng';
+import { getTodayDateStr, getDayIndex, getRandomTargets } from './services/prng';
 import {
   isDailyCompleted,
+  loadDailyState,
   loadStats,
   markDailyCompleted,
+  saveDailyState,
   saveGameResult,
 } from './services/storage';
 import { Header } from './components/Header';
@@ -51,7 +53,7 @@ const WORDLE_PRAISE: Record<number, string> = {
 export const App: React.FC = () => {
   // Game Configuration State
   const [mode, setMode] = useState<GameMode>('classic');
-  const [challengeType, setChallengeType] = useState<ChallengeType>('infinite');
+  const [challengeType, setChallengeType] = useState<ChallengeType>('daily');
   const [hardMode, setHardMode] = useState<boolean>(false);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(sound.enabled);
 
@@ -76,6 +78,7 @@ export const App: React.FC = () => {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   const todayStr = useMemo(() => getTodayDateStr(), []);
+  const dayIndex = useMemo(() => getDayIndex(), []);
   const maxGuesses = MAX_GUESSES_PER_MODE[mode];
 
   // Helper to display toast notifications
@@ -84,7 +87,7 @@ export const App: React.FC = () => {
     setToasts((prev) => [...prev, { id, text, type }]);
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 2200);
+    }, 2400);
   }, []);
 
   const dismissToast = (id: string) => {
@@ -109,30 +112,73 @@ export const App: React.FC = () => {
     }
     setHardMode((prev) => {
       const next = !prev;
-      showToast(next ? 'Hard Mode Enabled' : 'Hard Mode Disabled');
+      showToast(next ? 'Hard Mode Enabled 🛡️' : 'Hard Mode Disabled');
       return next;
     });
   };
 
-  // Initialize or Reset a Game
+  // Initialize or Restore a Game
   const startNewGame = useCallback(
     async (targetMode: GameMode = mode, targetChallenge: ChallengeType = challengeType) => {
       setCurrentInput('');
-      setIsGameOver(false);
-      setIsGameWon(false);
-      setIsShaking(false);
       setIsRevealing(false);
       setRevealingRow(null);
-      setWinningRows({});
-      setLastSolvedTurn(null);
+      setIsShaking(false);
 
+      // Check if there is an in-progress or completed Daily game saved in localStorage for today
+      if (targetChallenge === 'daily') {
+        const saved = loadDailyState(todayStr, targetMode);
+        if (saved) {
+          setBoards(saved.boards);
+          setIsGameOver(saved.isGameOver);
+          setIsGameWon(saved.isGameWon);
+          setLastSolvedTurn(saved.lastSolvedTurn);
+          setHardMode(saved.hardMode);
+          if (saved.absurdlePool) {
+            setAbsurdlePool(saved.absurdlePool);
+          }
+
+          if (saved.isGameOver) {
+            showToast(`Today's ${targetMode.toUpperCase()} is completed!`);
+          }
+          return;
+        }
+
+        // Fresh daily game: deterministic word(s) matching actual Wordle
+        const targetWords = await getDailyTargetsApi(todayStr, targetMode);
+        const initialBoards: BoardState[] = targetWords.map((word, idx) => ({
+          targetIndex: idx,
+          targetWord: word.toUpperCase(),
+          guesses: [],
+          evaluations: [],
+          isSolved: false,
+          solvedRowIndex: null,
+        }));
+
+        setBoards(initialBoards);
+        setIsGameOver(false);
+        setIsGameWon(false);
+        setWinningRows({});
+        setLastSolvedTurn(null);
+        setAbsurdlePool(SOLUTIONS);
+
+        saveDailyState({
+          dateStr: todayStr,
+          mode: targetMode,
+          boards: initialBoards,
+          isGameOver: false,
+          isGameWon: false,
+          lastSolvedTurn: null,
+          hardMode,
+        });
+        return;
+      }
+
+      // Practice Mode (Infinite): fresh random target words
       let targetWords: string[] = [];
-
       if (targetMode === 'absurdle') {
         targetWords = ['?????'];
         setAbsurdlePool(SOLUTIONS);
-      } else if (targetChallenge === 'daily') {
-        targetWords = await getDailyTargetsApi(todayStr, targetMode);
       } else {
         targetWords = getRandomTargets(targetMode);
       }
@@ -147,8 +193,12 @@ export const App: React.FC = () => {
       }));
 
       setBoards(initialBoards);
+      setIsGameOver(false);
+      setIsGameWon(false);
+      setWinningRows({});
+      setLastSolvedTurn(null);
     },
-    [mode, challengeType, todayStr]
+    [mode, challengeType, todayStr, hardMode, showToast]
   );
 
   // Switch Modality
@@ -163,7 +213,18 @@ export const App: React.FC = () => {
     const nextType: ChallengeType = challengeType === 'daily' ? 'infinite' : 'daily';
     setChallengeType(nextType);
     startNewGame(mode, nextType);
-    showToast(nextType === 'daily' ? 'Switched to Daily Challenge' : 'Switched to Practice Mode');
+    showToast(
+      nextType === 'daily'
+        ? `Switched to Daily #${dayIndex} 📅`
+        : 'Switched to Practice Mode (Unlimited) ♾️'
+    );
+  };
+
+  // Switch directly from modal to practice mode
+  const handleSwitchToPractice = () => {
+    setChallengeType('infinite');
+    startNewGame(mode, 'infinite');
+    showToast('Switched to Practice Mode (Unlimited) ♾️');
   };
 
   // Mount effect: Start game on first render
@@ -197,7 +258,7 @@ export const App: React.FC = () => {
       });
     } catch {}
 
-    // Save statistics
+    // Save statistics & mark daily completed
     saveGameResult(mode, true, finalTurn);
     if (challengeType === 'daily') {
       markDailyCompleted(todayStr, mode);
@@ -210,7 +271,7 @@ export const App: React.FC = () => {
   };
 
   // Trigger Defeat
-  const triggerDefeat = () => {
+  const triggerDefeat = (finalBoards: BoardState[]) => {
     setIsGameOver(true);
     setIsGameWon(false);
     sound.playDefeatThud();
@@ -220,9 +281,9 @@ export const App: React.FC = () => {
       markDailyCompleted(todayStr, mode);
     }
 
-    // Show solution for classic mode
-    if (mode === 'classic' && boards[0]?.targetWord) {
-      showToast(boards[0].targetWord, 'info');
+    // Show solution
+    if (mode === 'classic' && finalBoards[0]?.targetWord) {
+      showToast(finalBoards[0].targetWord, 'info');
     } else {
       showToast('Game Over', 'error');
     }
@@ -248,7 +309,12 @@ export const App: React.FC = () => {
 
   // Handle Guess Submission (ENTER)
   const handleEnter = async () => {
-    if (isGameOver || isRevealing) return;
+    if (isGameOver || isRevealing) {
+      if (isGameOver && challengeType === 'daily') {
+        showToast("Today's Daily is completed! Switch to Practice mode to keep playing.");
+      }
+      return;
+    }
 
     // 1. Length Validation
     if (currentInput.length < 5) {
@@ -261,7 +327,7 @@ export const App: React.FC = () => {
 
     const guess = currentInput.toUpperCase();
 
-    // 2. Master Dictionary Validation
+    // 2. Master 14,855 Dictionary Validation
     const isValid = await validateWordApi(guess);
     if (!isValid) {
       sound.playInvalidShake();
@@ -314,9 +380,22 @@ export const App: React.FC = () => {
         solvedRowIndex: absurdleWon ? boards[0].guesses.length : null,
       };
 
-      setBoards([nextBoard]);
+      const updatedBoards = [nextBoard];
+      setBoards(updatedBoards);
 
-      // Wait for flip animation to finish (5 tiles * 250ms = 1250ms + 250ms buffer)
+      if (challengeType === 'daily') {
+        saveDailyState({
+          dateStr: todayStr,
+          mode,
+          boards: updatedBoards,
+          isGameOver: absurdleWon,
+          isGameWon: absurdleWon,
+          lastSolvedTurn: absurdleWon ? nextBoard.guesses.length : null,
+          hardMode,
+          absurdlePool: remainingWords,
+        });
+      }
+
       setTimeout(() => {
         setIsRevealing(false);
         setRevealingRow(null);
@@ -362,21 +441,50 @@ export const App: React.FC = () => {
 
     setBoards(nextBoards);
 
+    const turnCount = Math.max(...nextBoards.map((b) => b.guesses.length));
+    const gameFinished = allSolved || turnCount >= maxGuesses;
+
+    // Persist daily state on every turn
+    if (challengeType === 'daily') {
+      saveDailyState({
+        dateStr: todayStr,
+        mode,
+        boards: nextBoards,
+        isGameOver: gameFinished,
+        isGameWon: allSolved,
+        lastSolvedTurn: allSolved ? turnCount : null,
+        hardMode,
+      });
+    }
+
     // After flip animation concludes:
     setTimeout(() => {
       setIsRevealing(false);
       setRevealingRow(null);
 
-      const turnCount = Math.max(...nextBoards.map((b) => b.guesses.length));
       if (allSolved) {
         triggerVictory(turnCount, newWins);
       } else if (turnCount >= maxGuesses) {
-        triggerDefeat();
+        triggerDefeat(nextBoards);
       }
     }, 1500);
   };
 
   const currentStats: GameStats = useMemo(() => loadStats(mode), [mode, isGameOver]);
+  const isDailyDone = useMemo(() => isDailyCompleted(todayStr, mode), [mode, todayStr, isGameOver]);
+
+  const handleRestartClick = () => {
+    if (challengeType === 'daily') {
+      if (isGameOver) {
+        setIsStatsOpen(true);
+      } else {
+        showToast(`Playing Daily #${dayIndex}. Complete today's puzzle or switch to Practice mode!`);
+      }
+    } else {
+      startNewGame(mode, 'infinite');
+      showToast('Started new practice game! 🎲');
+    }
+  };
 
   return (
     <div className="min-h-screen flex flex-col justify-between bg-wordle-dark text-white font-sans overflow-x-hidden selection:bg-wordle-green selection:text-white">
@@ -395,8 +503,10 @@ export const App: React.FC = () => {
         onToggleSound={toggleSound}
         onOpenStats={() => setIsStatsOpen(true)}
         onOpenHelp={() => setIsHelpOpen(true)}
-        onRestartGame={() => startNewGame(mode, challengeType)}
+        onRestartGame={handleRestartClick}
         currentStreak={currentStats.currentStreak}
+        dayIndex={dayIndex}
+        isDailyDone={isDailyDone}
       />
 
       {/* Main Boards Viewport */}
@@ -432,9 +542,11 @@ export const App: React.FC = () => {
         onClose={() => setIsStatsOpen(false)}
         stats={currentStats}
         mode={mode}
+        challengeType={challengeType}
         maxGuesses={maxGuesses}
         lastSolvedTurn={lastSolvedTurn}
         onOpenShare={() => setIsShareOpen(true)}
+        onSwitchToPractice={handleSwitchToPractice}
         isGameCompleted={isGameOver}
       />
 
@@ -445,6 +557,7 @@ export const App: React.FC = () => {
         mode={mode}
         challengeType={challengeType}
         dateStr={todayStr}
+        dayIndex={dayIndex}
         boards={boards}
         maxGuesses={maxGuesses}
         isWon={isGameWon}

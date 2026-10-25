@@ -8,6 +8,7 @@ interface ShareModalProps {
   mode: GameMode;
   challengeType: ChallengeType;
   dateStr: string;
+  dayIndex: number;
   boards: BoardState[];
   maxGuesses: number;
   isWon: boolean;
@@ -30,6 +31,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   mode,
   challengeType,
   dateStr,
+  dayIndex,
   boards,
   maxGuesses,
   isWon,
@@ -46,9 +48,9 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   const generateShareText = (): string => {
     const lines: string[] = [];
 
-    // Header line
+    // Header line matching actual Wordle
     if (challengeType === 'daily') {
-      lines.push(`ALLDLE (${modeTitle} Daily #${dateStr})`);
+      lines.push(`ALLDLE (${modeTitle} Daily #${dayIndex})`);
     } else {
       lines.push(`ALLDLE (${modeTitle} Practice)`);
     }

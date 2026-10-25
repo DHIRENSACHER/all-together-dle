@@ -1,15 +1,18 @@
-import React from 'react';
-import { GameMode, GameStats } from '../types/game';
-import { X, Trophy, Share2, Flame } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ChallengeType, GameMode, GameStats } from '../types/game';
+import { getTimeUntilMidnight } from '../services/prng';
+import { X, Trophy, Share2, Flame, Play, Clock } from 'lucide-react';
 
 interface StatsModalProps {
   isOpen: boolean;
   onClose: () => void;
   stats: GameStats;
   mode: GameMode;
+  challengeType: ChallengeType;
   maxGuesses: number;
   lastSolvedTurn: number | null;
   onOpenShare: () => void;
+  onSwitchToPractice?: () => void;
   isGameCompleted: boolean;
 }
 
@@ -18,11 +21,24 @@ export const StatsModal: React.FC<StatsModalProps> = ({
   onClose,
   stats,
   mode,
+  challengeType,
   maxGuesses,
   lastSolvedTurn,
   onOpenShare,
+  onSwitchToPractice,
   isGameCompleted,
 }) => {
+  const [countdown, setCountdown] = useState<string>(getTimeUntilMidnight());
+
+  // Real-time ticking countdown to midnight
+  useEffect(() => {
+    if (!isOpen) return;
+    const interval = setInterval(() => {
+      setCountdown(getTimeUntilMidnight());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const winPercentage =
@@ -37,7 +53,7 @@ export const StatsModal: React.FC<StatsModalProps> = ({
   const displayModeName = mode.charAt(0).toUpperCase() + mode.slice(1);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in select-none">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in select-none">
       <div className="relative w-full max-w-sm bg-wordle-card border border-wordle-border rounded-xl shadow-2xl p-6 animate-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-wordle-border">
@@ -115,18 +131,45 @@ export const StatsModal: React.FC<StatsModalProps> = ({
           </div>
         )}
 
-        {/* Share Button if Game Completed */}
-        {isGameCompleted && (
-          <button
-            onClick={() => {
-              onClose();
-              onOpenShare();
-            }}
-            className="w-full py-2.5 px-4 rounded font-bold uppercase tracking-wider text-xs bg-wordle-green hover:bg-wordle-greenHover text-white flex items-center justify-center gap-2 transition-colors shadow-md"
-          >
-            <Share2 className="w-4 h-4" /> Share Score
-          </button>
+        {/* Wordle Countdown Timer on Daily Complete */}
+        {isGameCompleted && challengeType === 'daily' && (
+          <div className="flex items-center justify-between p-3 rounded-lg bg-wordle-elevated border border-wordle-border mb-4">
+            <div className="flex items-center gap-2 text-xs font-bold text-wordle-subtext">
+              <Clock className="w-4 h-4 text-emerald-400" />
+              <span>Next {displayModeName} In</span>
+            </div>
+            <div className="font-mono font-black text-base text-white tracking-widest">
+              {countdown}
+            </div>
+          </div>
         )}
+
+        {/* Action Buttons: Share & Practice Switch */}
+        <div className="flex flex-col gap-2">
+          {isGameCompleted && (
+            <button
+              onClick={() => {
+                onClose();
+                onOpenShare();
+              }}
+              className="w-full py-2.5 px-4 rounded font-bold uppercase tracking-wider text-xs bg-wordle-green hover:bg-wordle-greenHover text-white flex items-center justify-center gap-2 transition-colors shadow-md"
+            >
+              <Share2 className="w-4 h-4" /> Share Score
+            </button>
+          )}
+
+          {isGameCompleted && challengeType === 'daily' && onSwitchToPractice && (
+            <button
+              onClick={() => {
+                onClose();
+                onSwitchToPractice();
+              }}
+              className="w-full py-2.5 px-4 rounded font-bold uppercase tracking-wider text-xs bg-wordle-card hover:bg-wordle-border border border-wordle-border text-sky-400 flex items-center justify-center gap-2 transition-colors"
+            >
+              <Play className="w-3.5 h-3.5 fill-current" /> Play Practice Mode (Unlimited)
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

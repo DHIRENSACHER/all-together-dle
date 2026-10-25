@@ -1,7 +1,19 @@
-import { GameMode, GameStats } from '../types/game';
+import { BoardState, GameMode, GameStats } from '../types/game';
 
-const STATS_KEY_PREFIX = 'wordle_infinite_stats_';
-const DAILY_COMPLETED_KEY = 'wordle_infinite_daily_completed_';
+const STATS_KEY_PREFIX = 'alldle_stats_';
+const DAILY_COMPLETED_KEY = 'alldle_daily_completed_';
+const DAILY_STATE_PREFIX = 'alldle_daily_state_';
+
+export interface SavedDailyState {
+  dateStr: string;
+  mode: GameMode;
+  boards: BoardState[];
+  isGameOver: boolean;
+  isGameWon: boolean;
+  lastSolvedTurn: number | null;
+  hardMode: boolean;
+  absurdlePool?: string[];
+}
 
 const DEFAULT_STATS: GameStats = {
   played: 0,
@@ -76,4 +88,23 @@ export function markDailyCompleted(dateStr: string, mode: GameMode) {
   try {
     localStorage.setItem(`${DAILY_COMPLETED_KEY}${mode}_${dateStr}`, 'true');
   } catch {}
+}
+
+export function saveDailyState(state: SavedDailyState) {
+  try {
+    localStorage.setItem(
+      `${DAILY_STATE_PREFIX}${state.mode}_${state.dateStr}`,
+      JSON.stringify(state)
+    );
+  } catch {}
+}
+
+export function loadDailyState(dateStr: string, mode: GameMode): SavedDailyState | null {
+  try {
+    const raw = localStorage.getItem(`${DAILY_STATE_PREFIX}${mode}_${dateStr}`);
+    if (raw) {
+      return JSON.parse(raw) as SavedDailyState;
+    }
+  } catch {}
+  return null;
 }
