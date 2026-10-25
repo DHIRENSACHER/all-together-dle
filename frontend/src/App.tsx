@@ -1,13 +1,10 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import confetti from 'canvas-confetti';
 import {
-  BoardEvaluation,
   BoardState,
   ChallengeType,
-  EntropyHint,
   GameMode,
   GameStats,
-  TileColor,
   ToastMessage,
 } from './types/game';
 import { sound } from './services/audio';
@@ -15,15 +12,10 @@ import {
   absurdleGuessApi,
   evaluateGuessApi,
   getDailyTargetsApi,
-  getEntropyHintsApi,
   validateHardModeLocal,
   validateWordApi,
 } from './services/api';
-import {
-  evaluatePatternInt,
-  isValidWord,
-  SOLUTIONS,
-} from './services/evaluator';
+import { SOLUTIONS } from './services/evaluator';
 import { getTodayDateStr, getRandomTargets } from './services/prng';
 import {
   isDailyCompleted,
@@ -34,7 +26,6 @@ import {
 import { Header } from './components/Header';
 import { BoardGrid } from './components/BoardGrid';
 import { Keyboard } from './components/Keyboard';
-import { EntropyAssistant } from './components/EntropyAssistant';
 import { StatsModal } from './components/StatsModal';
 import { ShareModal } from './components/ShareModal';
 import { HelpModal } from './components/HelpModal';
@@ -46,6 +37,15 @@ const MAX_GUESSES_PER_MODE: Record<GameMode, number> = {
   quordle: 9,
   octordle: 13,
   absurdle: 999,
+};
+
+const WORDLE_PRAISE: Record<number, string> = {
+  1: 'Genius',
+  2: 'Magnificent',
+  3: 'Impressive',
+  4: 'Splendid',
+  5: 'Great',
+  6: 'Phew',
 };
 
 export const App: React.FC = () => {
@@ -61,19 +61,15 @@ export const App: React.FC = () => {
   const [isGameOver, setIsGameOver] = useState<boolean>(false);
   const [isGameWon, setIsGameWon] = useState<boolean>(false);
   const [isShaking, setIsShaking] = useState<boolean>(false);
+  const [isRevealing, setIsRevealing] = useState<boolean>(false);
+  const [revealingRow, setRevealingRow] = useState<number | null>(null);
+  const [winningRows, setWinningRows] = useState<Record<number, number>>({});
   const [lastSolvedTurn, setLastSolvedTurn] = useState<number | null>(null);
 
   // Absurdle Specific State
   const [absurdlePool, setAbsurdlePool] = useState<string[]>(SOLUTIONS);
 
-  // Entropy Hints State
-  const [entropyHints, setEntropyHints] = useState<EntropyHint[]>([]);
-  const [candidateCount, setCandidateCount] = useState<number>(SOLUTIONS.length);
-  const [isEntropyLoading, setIsEntropyLoading] = useState<boolean>(false);
-  const [candidateWordsPool, setCandidateWordsPool] = useState<string[]>(SOLUTIONS);
-
   // Modals & UI State
-  const [isEntropyOpen, setIsEntropyOpen] = useState<boolean>(false);
   const [isStatsOpen, setIsStatsOpen] = useState<boolean>(false);
   const [isShareOpen, setIsShareOpen] = useState<boolean>(false);
   const [isHelpOpen, setIsHelpOpen] = useState<boolean>(false);
@@ -88,7 +84,7 @@ export const App: React.FC = () => {
     setToasts((prev) => [...prev, { id, text, type }]);
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 2800);
+    }, 2200);
   }, []);
 
   const dismissToast = (id: string) => {
@@ -107,29 +103,16 @@ export const App: React.FC = () => {
   const toggleHardMode = () => {
     const anyGuessesMade = boards.some((b) => b.guesses.length > 0);
     if (anyGuessesMade && !isGameOver) {
-      showToast('Hard mode can only be toggled at the start of a round', 'error');
+      sound.playInvalidShake();
+      showToast('Hard mode can only be enabled at start of round', 'error');
       return;
     }
     setHardMode((prev) => {
       const next = !prev;
-      showToast(next ? 'Hard Mode Enabled 🛡️' : 'Hard Mode Disabled');
+      showToast(next ? 'Hard Mode Enabled' : 'Hard Mode Disabled');
       return next;
     });
   };
-
-  // Refresh entropy hints for active game state
-  const updateEntropyHints = useCallback(async (candidates: string[]) => {
-    setIsEntropyLoading(true);
-    setCandidateCount(candidates.length);
-    try {
-      const { recommendations } = await getEntropyHintsApi(candidates, 10);
-      setEntropyHints(recommendations);
-    } catch {
-      // Handled in api fallback
-    } finally {
-      setIsEntropyLoading(false);
-    }
-  }, []);
 
   // Initialize or Reset a Game
   const startNewGame = useCallback(
@@ -138,6 +121,9 @@ export const App: React.FC = () => {
       setIsGameOver(false);
       setIsGameWon(false);
       setIsShaking(false);
+      setIsRevealing(false);
+      setRevealingRow(null);
+      setWinningRows({});
       setLastSolvedTurn(null);
 
       let targetWords: string[] = [];
@@ -145,8 +131,6 @@ export const App: React.FC = () => {
       if (targetMode === 'absurdle') {
         targetWords = ['?????'];
         setAbsurdlePool(SOLUTIONS);
-        setCandidateWordsPool(SOLUTIONS);
-        updateEntropyHints(SOLUTIONS);
       } else if (targetChallenge === 'daily') {
         targetWords = await getDailyTargetsApi(todayStr, targetMode);
       } else {
@@ -163,10 +147,8 @@ export const App: React.FC = () => {
       }));
 
       setBoards(initialBoards);
-      setCandidateWordsPool(SOLUTIONS);
-      updateEntropyHints(SOLUTIONS);
     },
-    [mode, challengeType, todayStr, updateEntropyHints]
+    [mode, challengeType, todayStr]
   );
 
   // Switch Modality
@@ -181,7 +163,7 @@ export const App: React.FC = () => {
     const nextType: ChallengeType = challengeType === 'daily' ? 'infinite' : 'daily';
     setChallengeType(nextType);
     startNewGame(mode, nextType);
-    showToast(nextType === 'daily' ? 'Switched to Daily Challenge 📅' : 'Switched to Infinite Practice ♾️');
+    showToast(nextType === 'daily' ? 'Switched to Daily Challenge' : 'Switched to Practice Mode');
   };
 
   // Mount effect: Start game on first render
@@ -190,32 +172,41 @@ export const App: React.FC = () => {
   }, []);
 
   // Trigger Victory Celebrations
-  const triggerVictory = (finalTurn: number) => {
+  const triggerVictory = (finalTurn: number, newlySolvedWins: Record<number, number>) => {
     setIsGameOver(true);
     setIsGameWon(true);
     setLastSolvedTurn(finalTurn);
+    setWinningRows(newlySolvedWins);
+
     sound.playVictoryFanfare();
+
+    // Wordle Praise Toast
+    const praise =
+      mode === 'classic'
+        ? WORDLE_PRAISE[finalTurn] || 'Splendid'
+        : 'Magnificent!';
+    showToast(praise, 'success');
 
     // Confetti cannon
     try {
       confetti({
-        particleCount: 100,
-        spread: 70,
+        particleCount: 120,
+        spread: 75,
         origin: { y: 0.6 },
         colors: ['#538d4e', '#b59f3b', '#ffffff'],
       });
     } catch {}
 
     // Save statistics
-    const updatedStats = saveGameResult(mode, true, finalTurn);
+    saveGameResult(mode, true, finalTurn);
     if (challengeType === 'daily') {
       markDailyCompleted(todayStr, mode);
     }
 
-    // Delay modal so user can appreciate their victorious grid
+    // Delay modal so user can enjoy their solved grid
     setTimeout(() => {
       setIsStatsOpen(true);
-    }, 1200);
+    }, 1800);
   };
 
   // Trigger Defeat
@@ -229,15 +220,21 @@ export const App: React.FC = () => {
       markDailyCompleted(todayStr, mode);
     }
 
-    showToast('Game Over! Better luck next time.', 'error');
+    // Show solution for classic mode
+    if (mode === 'classic' && boards[0]?.targetWord) {
+      showToast(boards[0].targetWord, 'info');
+    } else {
+      showToast('Game Over', 'error');
+    }
+
     setTimeout(() => {
       setIsStatsOpen(true);
-    }, 1500);
+    }, 2000);
   };
 
   // Handle Key Input
   const handleKey = (char: string) => {
-    if (isGameOver) return;
+    if (isGameOver || isRevealing) return;
     if (currentInput.length < 5) {
       setCurrentInput((prev) => prev + char.toUpperCase());
     }
@@ -245,20 +242,20 @@ export const App: React.FC = () => {
 
   // Handle Backspace
   const handleBackspace = () => {
-    if (isGameOver) return;
+    if (isGameOver || isRevealing) return;
     setCurrentInput((prev) => prev.slice(0, -1));
   };
 
   // Handle Guess Submission (ENTER)
   const handleEnter = async () => {
-    if (isGameOver) return;
+    if (isGameOver || isRevealing) return;
 
     // 1. Length Validation
     if (currentInput.length < 5) {
       sound.playInvalidShake();
       setIsShaking(true);
       setTimeout(() => setIsShaking(false), 500);
-      showToast('Word must be 5 letters', 'error');
+      showToast('Not enough letters', 'error');
       return;
     }
 
@@ -276,7 +273,6 @@ export const App: React.FC = () => {
 
     // 3. Hard Mode Constraints Validation
     if (hardMode && mode !== 'absurdle') {
-      // Find unsolved boards to validate against
       for (const board of boards) {
         if (!board.isSolved && board.guesses.length > 0) {
           const { isValid: hmValid, errorMessage } = validateHardModeLocal(
@@ -288,16 +284,21 @@ export const App: React.FC = () => {
             sound.playInvalidShake();
             setIsShaking(true);
             setTimeout(() => setIsShaking(false), 500);
-            showToast(errorMessage || 'Violates Hard Mode rules', 'error');
+            showToast(errorMessage || 'Must use previously revealed hints', 'error');
             return;
           }
         }
       }
     }
 
-    // 4. Process Guess per Modality
+    // Lock keyboard input during the 1.5s tile reveal animation
+    setIsRevealing(true);
+    const currentRowIdx = boards[0]?.guesses.length || 0;
+    setRevealingRow(currentRowIdx);
+    setCurrentInput('');
+
+    // Absurdle Modality
     if (mode === 'absurdle') {
-      // Adversarial AI Turn
       const { chosenPattern, remainingWords, isGameWon: absurdleWon } = await absurdleGuessApi(
         guess,
         absurdlePool
@@ -314,14 +315,16 @@ export const App: React.FC = () => {
       };
 
       setBoards([nextBoard]);
-      setCurrentInput('');
 
-      // Update Entropy hints based on remaining words
-      updateEntropyHints(remainingWords);
+      // Wait for flip animation to finish (5 tiles * 250ms = 1250ms + 250ms buffer)
+      setTimeout(() => {
+        setIsRevealing(false);
+        setRevealingRow(null);
 
-      if (absurdleWon) {
-        triggerVictory(nextBoard.guesses.length);
-      }
+        if (absurdleWon) {
+          triggerVictory(nextBoard.guesses.length, { 0: currentRowIdx });
+        }
+      }, 1500);
       return;
     }
 
@@ -330,7 +333,7 @@ export const App: React.FC = () => {
     const evaluations = await evaluateGuessApi(guess, activeTargets);
 
     let allSolved = true;
-    let anyNewlySolved = false;
+    const newWins: Record<number, number> = { ...winningRows };
 
     const nextBoards: BoardState[] = boards.map((board, idx) => {
       if (board.isSolved) {
@@ -339,12 +342,12 @@ export const App: React.FC = () => {
 
       const ev = evaluations[idx];
       const newlySolved = ev.isSolved || guess === board.targetWord;
-      if (newlySolved) anyNewlySolved = true;
-
       const updatedGuesses = [...board.guesses, guess];
       const updatedEvals = [...board.evaluations, ev.pattern];
 
-      if (!newlySolved) {
+      if (newlySolved) {
+        newWins[board.targetIndex] = currentRowIdx;
+      } else {
         allSolved = false;
       }
 
@@ -358,41 +361,29 @@ export const App: React.FC = () => {
     });
 
     setBoards(nextBoards);
-    setCurrentInput('');
 
-    // Filter candidate words for the first remaining unsolved board
-    const firstUnsolved = nextBoards.find((b) => !b.isSolved);
-    if (firstUnsolved) {
-      const gLower = guess.toLowerCase();
-      const lastEval = firstUnsolved.evaluations[firstUnsolved.evaluations.length - 1];
-      const updatedCandidates = candidateWordsPool.filter((w) => {
-        const pInt = evaluatePatternInt(gLower, w);
-        // Compare with evaluated pattern
-        const pat = firstUnsolved.evaluations[firstUnsolved.evaluations.length - 1];
-        // Fast test
-        return true; // candidates will be updated from candidate pool
-      });
-      setCandidateWordsPool(updatedCandidates);
-      updateEntropyHints(updatedCandidates);
-    }
+    // After flip animation concludes:
+    setTimeout(() => {
+      setIsRevealing(false);
+      setRevealingRow(null);
 
-    // Check Victory
-    const turnCount = Math.max(...nextBoards.map((b) => b.guesses.length));
-    if (allSolved) {
-      triggerVictory(turnCount);
-    } else if (turnCount >= maxGuesses) {
-      triggerDefeat();
-    }
+      const turnCount = Math.max(...nextBoards.map((b) => b.guesses.length));
+      if (allSolved) {
+        triggerVictory(turnCount, newWins);
+      } else if (turnCount >= maxGuesses) {
+        triggerDefeat();
+      }
+    }, 1500);
   };
 
   const currentStats: GameStats = useMemo(() => loadStats(mode), [mode, isGameOver]);
 
   return (
-    <div className="min-h-screen flex flex-col justify-between bg-wordle-dark text-white font-sans overflow-x-hidden">
+    <div className="min-h-screen flex flex-col justify-between bg-wordle-dark text-white font-sans overflow-x-hidden selection:bg-wordle-green selection:text-white">
       {/* Toast Notification Container */}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
-      {/* Top Navigation & Controls */}
+      {/* Top Header & Navigation */}
       <Header
         mode={mode}
         onSelectMode={handleSelectMode}
@@ -402,7 +393,6 @@ export const App: React.FC = () => {
         onToggleHardMode={toggleHardMode}
         soundEnabled={soundEnabled}
         onToggleSound={toggleSound}
-        onOpenEntropy={() => setIsEntropyOpen(true)}
         onOpenStats={() => setIsStatsOpen(true)}
         onOpenHelp={() => setIsHelpOpen(true)}
         onRestartGame={() => startNewGame(mode, challengeType)}
@@ -410,7 +400,7 @@ export const App: React.FC = () => {
       />
 
       {/* Main Boards Viewport */}
-      <main className="flex-1 flex flex-col items-center justify-start w-full px-2 sm:px-4 py-4 overflow-y-auto">
+      <main className="flex-1 flex flex-col items-center justify-center w-full px-2 sm:px-4 py-2 sm:py-4 overflow-y-auto">
         <BoardGrid
           mode={mode}
           boards={boards}
@@ -418,11 +408,13 @@ export const App: React.FC = () => {
           isGameOver={isGameOver}
           isShaking={isShaking}
           maxGuesses={maxGuesses}
+          revealingRow={revealingRow}
+          winningRows={winningRows}
           absurdleCandidateCount={mode === 'absurdle' ? absurdlePool.length : undefined}
         />
       </main>
 
-      {/* Bottom Multi-Segment Adaptive Keyboard */}
+      {/* Bottom Adaptive Keyboard */}
       <footer className="w-full pb-3 pt-1 border-t border-wordle-border/40 bg-wordle-dark/95 backdrop-blur-sm sticky bottom-0 z-30">
         <Keyboard
           mode={mode}
@@ -430,24 +422,9 @@ export const App: React.FC = () => {
           onKey={handleKey}
           onEnter={handleEnter}
           onBackspace={handleBackspace}
-          disabled={isGameOver}
+          disabled={isGameOver || isRevealing}
         />
       </footer>
-
-      {/* Shannon Entropy AI Hint Drawer */}
-      <EntropyAssistant
-        isOpen={isEntropyOpen}
-        onClose={() => setIsEntropyOpen(false)}
-        candidateCount={mode === 'absurdle' ? absurdlePool.length : candidateCount}
-        hints={entropyHints}
-        isLoading={isEntropyLoading}
-        onApplyWord={(word) => {
-          if (!isGameOver) {
-            setCurrentInput(word.toUpperCase());
-            showToast(`Applied '${word}' to active row!`);
-          }
-        }}
-      />
 
       {/* Statistics & Win Modal */}
       <StatsModal

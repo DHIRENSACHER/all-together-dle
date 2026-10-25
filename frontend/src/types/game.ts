@@ -24,14 +24,6 @@ export interface KeyCapSegment {
   status: TileColor;
 }
 
-export interface EntropyHint {
-  word: string;
-  entropyBits: number;
-  expectedRemaining: number;
-  isCandidate: boolean;
-  winProbability: number;
-}
-
 export interface GameStats {
   played: number;
   won: number;

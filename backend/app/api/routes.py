@@ -13,7 +13,6 @@ from app.config import (
     VALID_WORDS_SET,
 )
 from app.core.absurdle_engine import absurdle_turn
-from app.core.entropy_solver import get_top_recommendations
 from app.core.evaluator import evaluate_guess
 from app.core.hard_mode import (
     validate_hard_mode,
@@ -133,38 +132,6 @@ def validate_hard_mode_guess(req: HardModeValidateRequest):
     )
     return HardModeValidateResponse(is_valid=is_valid, error_message=err)
 
-
-@router.post("/entropy/hints", response_model=EntropyHintResponse)
-def calculate_entropy_hints(req: EntropyHintRequest):
-    """
-    Computes Shannon Information Entropy and expected candidate shrinkage
-    across remaining candidate words.
-    """
-    candidates = [w.lower() for w in req.candidate_words if len(w) == 5]
-    if not candidates:
-        return EntropyHintResponse(candidate_count=0, top_recommendations=[])
-
-    recs = get_top_recommendations(
-        candidates=candidates,
-        top_k=req.top_k,
-        allowed_words=ALL_WORDS_LIST,
-    )
-
-    recommendations = [
-        EntropyRecommendation(
-            word=r["word"],
-            entropy_bits=r["entropy_bits"],
-            expected_remaining=r["expected_remaining"],
-            is_candidate=r["is_candidate"],
-            win_probability=r["win_probability"],
-        )
-        for r in recs
-    ]
-
-    return EntropyHintResponse(
-        candidate_count=len(candidates),
-        top_recommendations=recommendations,
-    )
 
 
 @router.post("/absurdle/guess", response_model=AbsurdleStepResponse)

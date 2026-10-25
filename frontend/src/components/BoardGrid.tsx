@@ -10,6 +10,8 @@ interface BoardGridProps {
   isGameOver: boolean;
   isShaking: boolean;
   maxGuesses: number;
+  revealingRow: number | null;
+  winningRows: Record<number, number>; // boardIndex -> winning row index
   absurdleCandidateCount?: number;
 }
 
@@ -20,6 +22,8 @@ export const BoardGrid: React.FC<BoardGridProps> = ({
   isGameOver,
   isShaking,
   maxGuesses,
+  revealingRow,
+  winningRows,
   absurdleCandidateCount,
 }) => {
   const scrollToBoard = (index: number) => {
@@ -31,11 +35,11 @@ export const BoardGrid: React.FC<BoardGridProps> = ({
 
   // Grid styling based on mode
   const gridContainerClass = {
-    classic: 'grid grid-cols-1 max-w-sm mx-auto',
+    classic: 'flex justify-center items-center',
     dordle: 'grid grid-cols-1 md:grid-cols-2 gap-4 max-w-3xl mx-auto',
     quordle: 'grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl mx-auto',
     octordle: 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 max-w-7xl mx-auto',
-    absurdle: 'grid grid-cols-1 max-w-sm mx-auto',
+    absurdle: 'flex justify-center items-center',
   }[mode];
 
   // Tile size per modality
@@ -47,8 +51,10 @@ export const BoardGrid: React.FC<BoardGridProps> = ({
     absurdle: 'lg' as const,
   }[mode];
 
+  const showBoardTitle = mode !== 'classic' && mode !== 'absurdle';
+
   return (
-    <div className="w-full flex flex-col items-center">
+    <div className="w-full flex flex-col items-center justify-center flex-1 my-auto">
       {/* Octordle Quick-Jump Status Ribbon */}
       {mode === 'octordle' && (
         <div className="sticky top-14 z-20 w-full max-w-4xl px-2 py-2 mb-4 bg-wordle-card/90 backdrop-blur-md rounded-xl border border-wordle-border shadow-md flex items-center justify-between gap-1 overflow-x-auto">
@@ -83,9 +89,9 @@ export const BoardGrid: React.FC<BoardGridProps> = ({
       {mode === 'absurdle' && absurdleCandidateCount !== undefined && (
         <div className="mb-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-wordle-card border border-wordle-border text-xs font-semibold">
           <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
-          <span className="text-wordle-subtext">Adversarial Pool:</span>
+          <span className="text-wordle-subtext">Word Pool:</span>
           <span className="font-mono text-amber-400 font-bold">
-            {absurdleCandidateCount.toLocaleString()} words remaining
+            {absurdleCandidateCount.toLocaleString()} remaining
           </span>
         </div>
       )}
@@ -110,9 +116,12 @@ export const BoardGrid: React.FC<BoardGridProps> = ({
             isSolved={board.isSolved}
             isGameOver={isGameOver}
             isShaking={isShaking}
+            revealingRow={revealingRow}
+            winningRow={winningRows[board.targetIndex] ?? null}
             tileSize={tileSize}
             targetWord={board.targetWord}
             showSolutionOnLoss={true}
+            showBoardTitle={showBoardTitle}
           />
         ))}
       </div>

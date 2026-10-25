@@ -7,6 +7,7 @@ interface TileProps {
   color?: TileColor;
   delayIndex?: number;
   isRevealing?: boolean;
+  isWinning?: boolean;
   size?: 'sm' | 'md' | 'lg';
 }
 
@@ -15,22 +16,25 @@ export const Tile: React.FC<TileProps> = ({
   color = 'empty',
   delayIndex = 0,
   isRevealing = false,
+  isWinning = false,
   size = 'md',
 }) => {
   const [displayColor, setDisplayColor] = useState<TileColor>(color);
   const [isFlipping, setIsFlipping] = useState<boolean>(false);
+  const [hasRevealed, setHasRevealed] = useState<boolean>(!isRevealing && color !== 'empty');
 
   useEffect(() => {
     if (isRevealing) {
-      const delay = delayIndex * 250;
+      const startDelay = delayIndex * 250;
       const flipTimer = setTimeout(() => {
         setIsFlipping(true);
         sound.playTileFlip(delayIndex);
 
-        // Midpoint of 500ms flip animation (250ms in)
+        // Midpoint of 500ms flip animation (250ms in): swap color
         const colorTimer = setTimeout(() => {
           setDisplayColor(color);
-        }, 150);
+          setHasRevealed(true);
+        }, 250);
 
         const endTimer = setTimeout(() => {
           setIsFlipping(false);
@@ -40,11 +44,12 @@ export const Tile: React.FC<TileProps> = ({
           clearTimeout(colorTimer);
           clearTimeout(endTimer);
         };
-      }, delay);
+      }, startDelay);
 
       return () => clearTimeout(flipTimer);
     } else {
       setDisplayColor(color);
+      setHasRevealed(color !== 'empty' && color !== 'tbd');
       setIsFlipping(false);
     }
   }, [color, isRevealing, delayIndex]);
@@ -53,40 +58,42 @@ export const Tile: React.FC<TileProps> = ({
   const sizeClasses = {
     sm: 'w-7 h-7 sm:w-8 sm:h-8 text-sm sm:text-base font-bold',
     md: 'w-10 h-10 sm:w-12 sm:h-12 text-lg sm:text-xl font-extrabold',
-    lg: 'w-12 h-12 sm:w-14 sm:h-14 text-xl sm:text-2xl font-black',
+    lg: 'w-12 h-12 sm:w-[62px] sm:h-[62px] text-2xl sm:text-3xl font-extrabold',
   }[size];
 
   // Tile background and border styling based on state
   let bgBorderClass = 'bg-transparent border-2 border-wordle-border text-white';
 
-  if (!isRevealing || displayColor !== 'empty') {
+  if (hasRevealed || (!isRevealing && displayColor !== 'empty' && displayColor !== 'tbd')) {
     switch (displayColor) {
       case 'green':
-        bgBorderClass = 'bg-wordle-green border-wordle-green text-white shadow-sm';
+        bgBorderClass = 'bg-wordle-green border-2 border-wordle-green text-white';
         break;
       case 'yellow':
-        bgBorderClass = 'bg-wordle-yellow border-wordle-yellow text-white shadow-sm';
+        bgBorderClass = 'bg-wordle-yellow border-2 border-wordle-yellow text-white';
         break;
       case 'gray':
-        bgBorderClass = 'bg-wordle-gray border-wordle-gray text-white/90';
-        break;
-      case 'tbd':
-        bgBorderClass = 'bg-transparent border-2 border-wordle-borderLight text-white animate-pop';
+        bgBorderClass = 'bg-wordle-gray border-2 border-wordle-gray text-white';
         break;
       default:
-        bgBorderClass = letter
-          ? 'bg-transparent border-2 border-wordle-borderLight text-white animate-pop'
-          : 'bg-transparent border-2 border-wordle-border text-white';
+        bgBorderClass = 'bg-transparent border-2 border-wordle-border text-white';
         break;
     }
+  } else if (letter) {
+    bgBorderClass = 'bg-transparent border-2 border-wordle-borderLight text-white animate-pop';
   }
+
+  const bounceDelayStyle = isWinning
+    ? { animationDelay: `${delayIndex * 100}ms` }
+    : undefined;
 
   return (
     <div className={`perspective-1000 ${sizeClasses} select-none`}>
       <div
-        className={`w-full h-full flex items-center justify-center rounded uppercase transition-all duration-300 ${bgBorderClass} ${
-          isFlipping ? 'animate-flip-in' : ''
-        }`}
+        style={bounceDelayStyle}
+        className={`w-full h-full flex items-center justify-center rounded-[2px] uppercase transition-colors duration-150 ${bgBorderClass} ${
+          isFlipping ? 'animate-flip' : ''
+        } ${isWinning ? 'animate-win-bounce' : ''}`}
       >
         {letter}
       </div>

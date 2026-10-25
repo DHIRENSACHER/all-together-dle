@@ -11,11 +11,11 @@ interface KeyCapProps {
 }
 
 const COLOR_CLASSES: Record<TileColor, string> = {
-  green: 'bg-wordle-green',
-  yellow: 'bg-wordle-yellow',
-  gray: 'bg-wordle-gray',
-  tbd: 'bg-wordle-keyDefault',
-  empty: 'bg-wordle-keyDefault',
+  green: 'bg-wordle-green text-white',
+  yellow: 'bg-wordle-yellow text-white',
+  gray: 'bg-wordle-gray text-white',
+  tbd: 'bg-wordle-keyDefault text-white',
+  empty: 'bg-wordle-keyDefault text-white',
 };
 
 export const KeyCap: React.FC<KeyCapProps> = ({
@@ -26,7 +26,11 @@ export const KeyCap: React.FC<KeyCapProps> = ({
   isWide = false,
 }) => {
   const handleClick = () => {
-    sound.playKeyTap();
+    if (letter === 'BACKSPACE') {
+      sound.playBackspaceTap();
+    } else {
+      sound.playKeyTap();
+    }
     onClick(letter);
   };
 
@@ -38,7 +42,7 @@ export const KeyCap: React.FC<KeyCapProps> = ({
       const status = statuses[0] || 'empty';
       return (
         <div
-          className={`absolute inset-0 w-full h-full rounded transition-colors duration-300 ${COLOR_CLASSES[status]}`}
+          className={`absolute inset-0 w-full h-full rounded-[4px] transition-colors duration-300 ${COLOR_CLASSES[status]}`}
         />
       );
     }
@@ -48,7 +52,7 @@ export const KeyCap: React.FC<KeyCapProps> = ({
       const s0 = statuses[0] || 'empty';
       const s1 = statuses[1] || 'empty';
       return (
-        <div className="absolute inset-0 w-full h-full rounded overflow-hidden grid grid-cols-2">
+        <div className="absolute inset-0 w-full h-full rounded-[4px] overflow-hidden grid grid-cols-2">
           <div className={`h-full ${COLOR_CLASSES[s0]} border-r border-black/20`} />
           <div className={`h-full ${COLOR_CLASSES[s1]}`} />
         </div>
@@ -58,7 +62,7 @@ export const KeyCap: React.FC<KeyCapProps> = ({
     if (mode === 'quordle') {
       // 4 quadrant slices (2x2)
       return (
-        <div className="absolute inset-0 w-full h-full rounded overflow-hidden grid grid-cols-2 grid-rows-2">
+        <div className="absolute inset-0 w-full h-full rounded-[4px] overflow-hidden grid grid-cols-2 grid-rows-2">
           <div className={`h-full border-r border-b border-black/20 ${COLOR_CLASSES[statuses[0] || 'empty']}`} />
           <div className={`h-full border-b border-black/20 ${COLOR_CLASSES[statuses[1] || 'empty']}`} />
           <div className={`h-full border-r border-black/20 ${COLOR_CLASSES[statuses[2] || 'empty']}`} />
@@ -70,7 +74,7 @@ export const KeyCap: React.FC<KeyCapProps> = ({
     if (mode === 'octordle') {
       // 8 vertical stripes
       return (
-        <div className="absolute inset-0 w-full h-full rounded overflow-hidden grid grid-cols-8">
+        <div className="absolute inset-0 w-full h-full rounded-[4px] overflow-hidden grid grid-cols-8">
           {Array.from({ length: 8 }).map((_, i) => (
             <div
               key={`octo-seg-${i}`}
@@ -85,7 +89,7 @@ export const KeyCap: React.FC<KeyCapProps> = ({
 
     return (
       <div
-        className={`absolute inset-0 w-full h-full rounded ${
+        className={`absolute inset-0 w-full h-full rounded-[4px] ${
           COLOR_CLASSES[statuses[0] || 'empty']
         }`}
       />
@@ -93,32 +97,26 @@ export const KeyCap: React.FC<KeyCapProps> = ({
   };
 
   const widthClass = isWide
-    ? 'flex-[1.5] min-w-[50px] sm:min-w-[65px] text-xs font-bold'
-    : 'flex-1 min-w-[28px] sm:min-w-[38px] text-sm sm:text-base font-extrabold';
+    ? 'flex-[1.5] min-w-[54px] sm:min-w-[65px] text-[11px] sm:text-xs font-bold'
+    : 'flex-1 min-w-[30px] sm:min-w-[42px] text-sm sm:text-base font-bold';
 
   return (
     <button
-      type="button"
       onClick={handleClick}
-      className={`relative h-12 sm:h-14 rounded overflow-hidden select-none active:scale-95 transition-transform duration-75 flex items-center justify-center ${widthClass}`}
-      aria-label={letter}
+      aria-label={letter === 'BACKSPACE' ? 'Backspace' : letter}
+      className={`relative h-12 sm:h-[58px] ${widthClass} rounded-[4px] flex items-center justify-center cursor-pointer select-none overflow-hidden transition-transform active:scale-[0.96] active:brightness-90 duration-75`}
     >
       {renderBackground()}
-      <span className="relative z-10 text-white uppercase pointer-events-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]">
+      <span className="relative z-10 font-bold uppercase tracking-wide text-white flex items-center justify-center">
         {letter === 'BACKSPACE' ? (
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            className="w-5 h-5 mx-auto"
-            fill="none"
+            height="22"
             viewBox="0 0 24 24"
-            stroke="currentColor"
+            width="22"
+            className="w-5 h-5 sm:w-6 sm:h-6 fill-current"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2.5}
-              d="M12 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M3 12l6.414-6.414a2 2 0 011.414-.586H19a2 2 0 012 2v10a2 2 0 01-2 2h-8.172a2 2 0 01-1.414-.586L3 12z"
-            />
+            <path d="M22 3H7c-.69 0-1.23.35-1.59.88L0 12l5.41 8.11c.36.53.9.89 1.59.89h15c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H7.07L2.4 12l4.66-7H22v14zm-11.59-2L14 13.41 17.59 17 19 15.59 15.41 12 19 8.41 17.59 7 14 10.59 10.41 7 9 8.41 12.59 12 9 15.59z" />
           </svg>
         ) : (
           letter

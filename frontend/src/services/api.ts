@@ -1,4 +1,4 @@
-import { BoardEvaluation, EntropyHint, GameMode, TileColor } from '../types/game';
+import { BoardEvaluation, GameMode, TileColor } from '../types/game';
 import {
   decodePattern,
   evaluateGuess as clientEvaluateGuess,
@@ -7,23 +7,8 @@ import {
   SOLUTIONS,
 } from './evaluator';
 import { getDeterministicDailyTargets } from './prng';
-import { getClientTopRecommendations } from './entropy';
-
-const API_BASE = '/api/v1';
 
 export async function validateWordApi(word: string): Promise<boolean> {
-  try {
-    const res = await fetch(`${API_BASE}/words/validate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ word }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      return data.is_valid;
-    }
-  } catch {}
-  // Offline fallback
   return clientIsValidWord(word);
 }
 
@@ -31,23 +16,6 @@ export async function evaluateGuessApi(
   guess: string,
   targets: string[]
 ): Promise<BoardEvaluation[]> {
-  try {
-    const res = await fetch(`${API_BASE}/game/evaluate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ guess, targets }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      return data.evaluations.map((e: { target_index: number; pattern: TileColor[]; is_solved: boolean }) => ({
-        targetIndex: e.target_index,
-        pattern: e.pattern,
-        isSolved: e.is_solved,
-      }));
-    }
-  } catch {}
-
-  // Offline fallback
   return targets.map((t, idx) => ({
     targetIndex: idx,
     pattern: clientEvaluateGuess(guess, t),
@@ -56,57 +24,7 @@ export async function evaluateGuessApi(
 }
 
 export async function getDailyTargetsApi(dateStr: string, mode: GameMode): Promise<string[]> {
-  try {
-    const res = await fetch(`${API_BASE}/game/daily?date=${dateStr}&mode=${mode}`);
-    if (res.ok) {
-      const data = await res.json();
-      return data.targets;
-    }
-  } catch {}
-
-  // Offline fallback
   return getDeterministicDailyTargets(dateStr, mode);
-}
-
-export async function getEntropyHintsApi(
-  candidateWords: string[],
-  topK: number = 10
-): Promise<{ count: number; recommendations: EntropyHint[] }> {
-  try {
-    const res = await fetch(`${API_BASE}/entropy/hints`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ candidate_words: candidateWords, top_k: topK }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      return {
-        count: data.candidate_count,
-        recommendations: data.top_recommendations.map(
-          (r: {
-            word: string;
-            entropy_bits: number;
-            expected_remaining: number;
-            is_candidate: boolean;
-            win_probability: number;
-          }) => ({
-            word: r.word,
-            entropyBits: r.entropy_bits,
-            expectedRemaining: r.expected_remaining,
-            isCandidate: r.is_candidate,
-            winProbability: r.win_probability,
-          })
-        ),
-      };
-    }
-  } catch {}
-
-  // Offline fallback
-  const recs = getClientTopRecommendations(candidateWords, topK);
-  return {
-    count: candidateWords.length,
-    recommendations: recs,
-  };
 }
 
 export async function absurdleGuessApi(
@@ -118,24 +36,6 @@ export async function absurdleGuessApi(
   remainingCount: number;
   isGameWon: boolean;
 }> {
-  try {
-    const res = await fetch(`${API_BASE}/absurdle/guess`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ guess, candidate_words: candidateWords }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      return {
-        chosenPattern: data.chosen_pattern,
-        remainingWords: data.remaining_words,
-        remainingCount: data.remaining_count,
-        isGameWon: data.is_game_won,
-      };
-    }
-  } catch {}
-
-  // Offline fallback
   const g = guess.toLowerCase();
   if (candidateWords.length === 1 && candidateWords[0].toLowerCase() === g) {
     return {

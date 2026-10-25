@@ -1,0 +1,21 @@
+# Node
+node_modules
+*/node_modules
+dist
+*/dist
+.vite
+*/.vite
+
+# Python
+__pycache__
+*/__pycache__
+*.pyc
+.pytest_cache
+
+# Vercel
+.vercel
+*/.vercel
+
+# OS
+.DS_Store
+Thumbs.db

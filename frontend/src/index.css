@@ -6,7 +6,10 @@
   body {
     background-color: #121213;
     color: #ffffff;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'Clear Sans', 'Helvetica Neue', Arial, -apple-system, BlinkMacSystemFont, sans-serif;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
   }
 }
 
@@ -21,6 +24,16 @@
 
 .backface-hidden {
   backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* Custom scrollbars */
@@ -30,7 +43,7 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #1a1a1b;
+  background: #121213;
 }
 
 ::-webkit-scrollbar-thumb {

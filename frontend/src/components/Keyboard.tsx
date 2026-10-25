@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { BoardState, GameMode, TileColor } from '../types/game';
 import { KeyCap } from './KeyCap';
+import { sound } from '../services/audio';
 
 interface KeyboardProps {
   mode: GameMode;
@@ -33,7 +34,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({
   onBackspace,
   disabled = false,
 }) => {
-  // Listen for physical keyboard input
+  // Listen for physical keyboard input with authentic sound feedback
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (disabled) return;
@@ -42,12 +43,15 @@ export const Keyboard: React.FC<KeyboardProps> = ({
       const key = e.key.toUpperCase();
       if (key === 'ENTER') {
         e.preventDefault();
+        sound.playKeyTap();
         onEnter();
       } else if (key === 'BACKSPACE') {
         e.preventDefault();
+        sound.playBackspaceTap();
         onBackspace();
       } else if (/^[A-Z]$/.test(key)) {
         e.preventDefault();
+        sound.playKeyTap();
         onKey(key);
       }
     };
@@ -95,13 +99,17 @@ export const Keyboard: React.FC<KeyboardProps> = ({
   };
 
   return (
-    <div className="w-full max-w-xl mx-auto px-1.5 py-2 select-none">
+    <div className="w-full max-w-[500px] mx-auto px-1.5 py-1 select-none">
       <div className="flex flex-col gap-1.5 sm:gap-2">
         {ROWS.map((row, rowIdx) => (
-          <div key={`row-${rowIdx}`} className="flex gap-1 sm:gap-1.5 justify-center w-full">
+          <div key={`row-${rowIdx}`} className="flex justify-center gap-1 sm:gap-1.5 w-full touch-manipulation">
+            {/* Row 2 half-key spacer for centered alignment like official Wordle */}
+            {rowIdx === 1 && <div className="flex-[0.5]" />}
+
             {row.map((letter) => {
-              const isAction = letter === 'ENTER' || letter === 'BACKSPACE';
-              const statuses = isAction ? ['empty' as TileColor] : getKeyStatuses(letter);
+              const isWide = letter === 'ENTER' || letter === 'BACKSPACE';
+              const statuses = getKeyStatuses(letter);
+
               return (
                 <KeyCap
                   key={letter}
@@ -109,10 +117,12 @@ export const Keyboard: React.FC<KeyboardProps> = ({
                   mode={mode}
                   statuses={statuses}
                   onClick={handleKeyClick}
-                  isWide={isAction}
+                  isWide={isWide}
                 />
               );
             })}
+
+            {rowIdx === 1 && <div className="flex-[0.5]" />}
           </div>
         ))}
       </div>

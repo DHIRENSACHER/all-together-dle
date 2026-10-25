@@ -3,7 +3,6 @@ import { ChallengeType, GameMode } from '../types/game';
 import {
   Volume2,
   VolumeX,
-  Sparkles,
   BarChart2,
   HelpCircle,
   RotateCcw,
@@ -22,7 +21,6 @@ interface HeaderProps {
   onToggleHardMode: () => void;
   soundEnabled: boolean;
   onToggleSound: () => void;
-  onOpenEntropy: () => void;
   onOpenStats: () => void;
   onOpenHelp: () => void;
   onRestartGame: () => void;
@@ -46,21 +44,20 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleHardMode,
   soundEnabled,
   onToggleSound,
-  onOpenEntropy,
   onOpenStats,
   onOpenHelp,
   onRestartGame,
   currentStreak,
 }) => {
   return (
-    <header className="w-full max-w-5xl mx-auto px-4 py-3 flex flex-col gap-3 border-b border-wordle-border select-none">
+    <header className="w-full max-w-2xl mx-auto px-3 sm:px-4 pt-2 pb-2 flex flex-col gap-2 border-b border-wordle-border select-none">
       {/* Top Navbar */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between h-11">
         {/* Left Action Buttons */}
-        <div className="flex items-center gap-1.5 sm:gap-2">
+        <div className="flex items-center gap-1 sm:gap-1.5">
           <button
             onClick={onOpenHelp}
-            className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-wordle-card border border-transparent hover:border-wordle-border transition-colors"
+            className="p-1.5 sm:p-2 rounded text-gray-400 hover:text-white hover:bg-wordle-card transition-colors"
             title="How to Play & Rules"
             aria-label="How to Play"
           >
@@ -69,7 +66,7 @@ export const Header: React.FC<HeaderProps> = ({
 
           <button
             onClick={onToggleChallengeType}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold bg-wordle-card border border-wordle-border hover:border-wordle-borderLight text-gray-300 transition-colors"
+            className="flex items-center gap-1 px-2 py-1 rounded text-xs font-bold bg-wordle-card border border-wordle-border hover:border-wordle-borderLight text-gray-300 transition-colors"
             title={`Switch to ${challengeType === 'daily' ? 'Infinite Practice' : 'Daily Challenge'}`}
           >
             {challengeType === 'daily' ? (
@@ -88,7 +85,7 @@ export const Header: React.FC<HeaderProps> = ({
           {mode !== 'octordle' && mode !== 'absurdle' && (
             <button
               onClick={onToggleHardMode}
-              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
+              className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-bold border transition-colors ${
                 hardMode
                   ? 'bg-amber-500/10 text-amber-400 border-amber-500/40'
                   : 'bg-wordle-card text-gray-400 border-wordle-border hover:text-white'
@@ -103,28 +100,17 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Center Title */}
         <div className="text-center">
-          <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white flex items-center justify-center gap-1.5 font-sans">
-            <span className="text-wordle-green">WORDLE</span>
-            <span className="text-white">INFINITE</span>
+          <h1 className="text-2xl sm:text-3xl font-black tracking-widest text-white uppercase font-sans">
+            ALLDLE
           </h1>
         </div>
 
         {/* Right Action Buttons */}
-        <div className="flex items-center gap-1.5 sm:gap-2">
-          {/* Shannon Entropy Drawer Button */}
-          <button
-            onClick={onOpenEntropy}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-950/40 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-900/40 transition-colors shadow-sm"
-            title="Open Shannon Entropy AI Hints"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
-            <span className="hidden sm:inline">AI Hints</span>
-          </button>
-
+        <div className="flex items-center gap-1 sm:gap-1.5">
           {/* Sound Toggle */}
           <button
             onClick={onToggleSound}
-            className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-wordle-card border border-transparent hover:border-wordle-border transition-colors"
+            className="p-1.5 sm:p-2 rounded text-gray-400 hover:text-white hover:bg-wordle-card transition-colors"
             title={soundEnabled ? 'Mute Sound Effects' : 'Enable Sound Effects'}
             aria-label="Toggle Sound"
           >
@@ -134,7 +120,7 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Stats Button */}
           <button
             onClick={onOpenStats}
-            className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-wordle-card border border-transparent hover:border-wordle-border transition-colors flex items-center gap-1"
+            className="p-1.5 sm:p-2 rounded text-gray-400 hover:text-white hover:bg-wordle-card transition-colors flex items-center gap-1"
             title="View Statistics & Streak"
             aria-label="Statistics"
           >
@@ -150,7 +136,7 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Reset / New Game */}
           <button
             onClick={onRestartGame}
-            className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-wordle-card border border-transparent hover:border-wordle-border transition-colors"
+            className="p-1.5 sm:p-2 rounded text-gray-400 hover:text-white hover:bg-wordle-card transition-colors"
             title="Restart / New Game"
             aria-label="New Game"
           >
@@ -160,16 +146,16 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Modality Selector Tabs */}
-      <div className="flex items-center justify-center gap-1 sm:gap-2 overflow-x-auto py-1">
+      <div className="flex items-center justify-center gap-1 sm:gap-1.5 overflow-x-auto py-0.5">
         {MODES.map((m) => {
           const isActive = mode === m.id;
           return (
             <button
               key={m.id}
               onClick={() => onSelectMode(m.id)}
-              className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
+              className={`px-2.5 sm:px-3 py-1 rounded text-xs sm:text-xs font-bold whitespace-nowrap transition-all ${
                 isActive
-                  ? 'bg-wordle-green text-white shadow-md shadow-wordle-green/20'
+                  ? 'bg-wordle-green text-white shadow'
                   : 'bg-wordle-card/80 text-gray-400 hover:text-white hover:bg-wordle-border border border-wordle-border/40'
               }`}
               title={m.desc}

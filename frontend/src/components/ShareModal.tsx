@@ -48,9 +48,9 @@ export const ShareModal: React.FC<ShareModalProps> = ({
 
     // Header line
     if (challengeType === 'daily') {
-      lines.push(`Wordle Infinite (${modeTitle} Daily #${dateStr})`);
+      lines.push(`ALLDLE (${modeTitle} Daily #${dateStr})`);
     } else {
-      lines.push(`Wordle Infinite (${modeTitle} Practice)`);
+      lines.push(`ALLDLE (${modeTitle} Practice)`);
     }
 
     if (mode === 'classic' || mode === 'absurdle') {
@@ -68,14 +68,12 @@ export const ShareModal: React.FC<ShareModalProps> = ({
         .join('  ');
       lines.push(boardScores + '\n');
 
-      // Grid of emoji tiles per turn
       const maxRows = Math.max(...boards.map((b) => b.evaluations.length));
       for (let r = 0; r < maxRows; r++) {
         const rowEmojis = boards.map((b) => {
           if (r < b.evaluations.length) {
             return b.evaluations[r].map((c) => COLOR_EMOJI[c] || '⬛').join('');
           }
-          // If solved earlier, fill with green
           if (b.isSolved) {
             return '🟩🟩🟩🟩🟩';
           }
@@ -85,7 +83,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
       }
     }
 
-    lines.push('\nPlay: https://wordle-infinite.local');
+    lines.push('\nPlay: https://alldle.vercel.app');
     return lines.join('\n');
   };
 
@@ -96,32 +94,42 @@ export const ShareModal: React.FC<ShareModalProps> = ({
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(shareText);
       } else {
-        // Fallback for older browsers
         const textarea = document.createElement('textarea');
         textarea.value = shareText;
-        textarea.style.position = 'fixed';
-        textarea.style.opacity = '0';
         document.body.appendChild(textarea);
         textarea.select();
         document.execCommand('copy');
         document.body.removeChild(textarea);
       }
       setCopied(true);
-      onShowToast('Copied result to clipboard! 📋');
+      onShowToast('Copied results to clipboard!');
       setTimeout(() => setCopied(false), 2500);
     } catch {
       onShowToast('Failed to copy to clipboard');
     }
   };
 
+  const handleNativeShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'ALLDLE Score',
+          text: shareText,
+        });
+        return;
+      } catch {}
+    }
+    handleCopy();
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in select-none">
-      <div className="relative w-full max-w-md bg-wordle-card border border-wordle-border rounded-2xl shadow-2xl p-6 animate-in zoom-in-95 duration-200">
-        <div className="flex items-center justify-between pb-4 border-b border-wordle-border">
+      <div className="relative w-full max-w-sm bg-wordle-card border border-wordle-border rounded-xl shadow-2xl p-6 animate-in zoom-in-95 duration-200">
+        <div className="flex items-center justify-between pb-3 border-b border-wordle-border">
           <div className="flex items-center gap-2">
-            <Share2 className="w-5 h-5 text-emerald-400" />
-            <h2 className="text-lg font-black text-white uppercase tracking-wider">
-              Share Emoji Card
+            <Share2 className="w-5 h-5 text-wordle-green" />
+            <h2 className="text-base font-black text-white uppercase tracking-wider">
+              Share Results
             </h2>
           </div>
           <button
@@ -132,32 +140,42 @@ export const ShareModal: React.FC<ShareModalProps> = ({
           </button>
         </div>
 
-        {/* Formatted Preview Box */}
-        <div className="my-5 p-4 rounded-xl bg-wordle-elevated border border-wordle-border font-mono text-xs text-gray-200 whitespace-pre overflow-x-auto max-h-64">
+        {/* Emoji Preview Box */}
+        <div className="my-4 p-4 rounded-lg bg-wordle-elevated border border-wordle-border font-mono text-center text-sm leading-relaxed max-h-56 overflow-y-auto whitespace-pre-wrap">
           {shareText}
         </div>
 
-        {/* Copy Button */}
-        <button
-          onClick={handleCopy}
-          className={`w-full py-3.5 px-4 rounded-xl font-black text-sm tracking-wide uppercase transition-all shadow-lg flex items-center justify-center gap-2 active:scale-98 ${
-            copied
-              ? 'bg-emerald-600 text-white shadow-emerald-600/30'
-              : 'bg-wordle-green hover:bg-wordle-greenHover text-white shadow-wordle-green/20'
-          }`}
-        >
-          {copied ? (
-            <>
-              <Check className="w-4 h-4" />
-              <span>Copied to Clipboard!</span>
-            </>
-          ) : (
-            <>
-              <Copy className="w-4 h-4" />
-              <span>Copy Score Card</span>
-            </>
+        {/* Action Buttons */}
+        <div className="flex gap-2">
+          <button
+            onClick={handleCopy}
+            className={`flex-1 py-3 px-4 rounded font-bold uppercase tracking-wider text-xs flex items-center justify-center gap-2 transition-all shadow-md ${
+              copied
+                ? 'bg-emerald-600 text-white'
+                : 'bg-wordle-green hover:bg-wordle-greenHover text-white'
+            }`}
+          >
+            {copied ? (
+              <>
+                <Check className="w-4 h-4" /> Copied!
+              </>
+            ) : (
+              <>
+                <Copy className="w-4 h-4" /> Copy Text
+              </>
+            )}
+          </button>
+
+          {typeof navigator !== 'undefined' && 'share' in navigator && (
+            <button
+              onClick={handleNativeShare}
+              className="py-3 px-4 rounded font-bold uppercase tracking-wider text-xs bg-wordle-border hover:bg-wordle-borderLight text-white flex items-center justify-center gap-1.5 transition-colors"
+              title="Share with Apps"
+            >
+              <Share2 className="w-4 h-4" />
+            </button>
           )}
-        </button>
+        </div>
       </div>
     </div>
   );
