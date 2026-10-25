@@ -215,7 +215,7 @@ export const App: React.FC = () => {
     startNewGame(mode, nextType);
     showToast(
       nextType === 'daily'
-        ? `Switched to Daily #${dayIndex} 📅`
+        ? 'Switched to Daily Challenge 📅'
         : 'Switched to Practice Mode (Unlimited) ♾️'
     );
   };
@@ -478,7 +478,7 @@ export const App: React.FC = () => {
       if (isGameOver) {
         setIsStatsOpen(true);
       } else {
-        showToast(`Playing Daily #${dayIndex}. Complete today's puzzle or switch to Practice mode!`);
+        showToast("Playing Daily challenge. Complete today's puzzle or switch to Practice mode!");
       }
     } else {
       startNewGame(mode, 'infinite');

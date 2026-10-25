@@ -80,7 +80,7 @@ export const Header: React.FC<HeaderProps> = ({
             {challengeType === 'daily' ? (
               <>
                 <Calendar className="w-3.5 h-3.5 text-emerald-400" />
-                <span className="text-emerald-400 font-bold">Daily #{dayIndex}</span>
+                <span className="text-emerald-400 font-bold">Daily</span>
                 {isDailyDone && <CheckCircle2 className="w-3 h-3 text-emerald-400 ml-0.5" />}
               </>
             ) : (
@@ -114,11 +114,9 @@ export const Header: React.FC<HeaderProps> = ({
           </h1>
           <div className="text-[10px] sm:text-[11px] font-bold tracking-wider text-wordle-subtext mt-0.5">
             {challengeType === 'daily' ? (
-              <span className="text-emerald-400">
-                {mode === 'classic' ? 'Wordle' : modeTitle} #{dayIndex}
-              </span>
+              <span className="text-emerald-400">Daily</span>
             ) : (
-              <span className="text-sky-400">Practice Mode</span>
+              <span className="text-sky-400">Practice</span>
             )}
           </div>
         </div>
