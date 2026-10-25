@@ -83,7 +83,8 @@ export const ShareModal: React.FC<ShareModalProps> = ({
       }
     }
 
-    lines.push('\nPlay: https://alldle.vercel.app');
+    const appUrl = typeof window !== 'undefined' ? window.location.origin : 'https://alldle-khaki.vercel.app';
+    lines.push(`\nPlay: ${appUrl}`);
     return lines.join('\n');
   };
 
